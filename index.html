@@ -1174,6 +1174,47 @@ cddAll();setInterval(cddAll,400);document.addEventListener('click',()=>document.
  try{if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&document.querySelector('link[rel="manifest"]'))
   addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}catch(e){}
 })();
+/* iPhone: keep playing with the screen locked, portrait layout */
+var vrIos=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+(function(){
+ if(vrIos){
+  document.documentElement.classList.add('ios');
+  /* music must stay a plain <audio> (not routed through Web Audio) or iOS silences it when the screen locks */
+  try{navigator.audioSession&&(navigator.audioSession.type='playback')}catch(e){}
+  viz=function(){vz=false};
+  var wmi=$('#wm');if(wmi)wmi.oninput=function(){};
+  addEventListener('visibilitychange',function(){if(!document.hidden&&ctx&&ctx.state!=='running'&&!au.paused)try{ctx.resume()}catch(e){}});
+ }
+ if('mediaSession' in navigator){
+  var ms=navigator.mediaSession,lastPos=0;
+  var pos=function(){try{if(isFinite(au.duration)&&au.duration>0)ms.setPositionState({duration:au.duration,playbackRate:au.playbackRate||1,position:Math.min(au.currentTime,au.duration)})}catch(e){}};
+  au.addEventListener('play',function(){try{ms.playbackState='playing'}catch(e){}pos()});
+  au.addEventListener('pause',function(){try{ms.playbackState='paused'}catch(e){}pos()});
+  au.addEventListener('loadedmetadata',pos);au.addEventListener('seeked',pos);
+  au.addEventListener('timeupdate',function(){var t=Date.now();if(t-lastPos>5000){lastPos=t;pos()}});
+  try{ms.setActionHandler('seekto',function(d){if(d&&isFinite(d.seekTime)){au.currentTime=d.seekTime;pos()}})}catch(e){}
+  try{ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10));pos()})}catch(e){}
+  try{ms.setActionHandler('seekforward',function(d){au.currentTime=Math.min(au.duration||1e9,au.currentTime+((d&&d.seekOffset)||10));pos()})}catch(e){}
+ }
+ var st=document.createElement('style');st.id='vr-portrait';
+ st.textContent=
+ '.ios,.ios *{-webkit-tap-highlight-color:transparent}.ios button,.ios input{touch-action:manipulation}'+
+ '.ios .opt,.ios .sr:has(#wm),.ios .sr:has(#xv){display:none!important}'+
+ '@media (max-width:640px) and (orientation:portrait){'+
+  'html,body{overflow-x:clip}'+
+  '#room{padding:10px 12px calc(26px + env(safe-area-inset-bottom,0px));gap:14px;overflow-x:clip}'+
+  '.table{overflow-x:clip;padding:20px 10px 18px;gap:14px}'+
+  '.np{max-width:none;gap:10px}'+
+  '#title{font-size:34px!important}'+
+  '.seek{gap:12px;font-size:14px}.seek input{height:34px}'+
+  '.np .ctl:has(#play){display:grid;grid-template-columns:repeat(3,auto);justify-content:center;gap:12px 18px}'+
+  '#prev,#next{width:56px;height:56px;padding:0}'+
+  '.b.pri{width:72px;height:72px}'+
+  '#add{grid-column:1/-1;justify-self:center;width:min(100%,240px);height:46px}'+
+  'dialog{width:min(94vw,400px);max-height:calc(100dvh - 28px);overflow-y:auto}'+
+ '}';
+ document.head.appendChild(st);
+})();
 /* start */
 (async()=>{recs=(await db('readonly',s=>s.getAll()))||[];recs.sort((a,b)=>a.t-b.t);render();
   if(recs.length){$('#title').textContent='Pick a record';$('#sub').textContent='Choose one from the shelf.'}})();

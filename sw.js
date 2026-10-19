@@ -1,5 +1,5 @@
 /* Vibe Room offline shell. Only caches the app files; your records live in IndexedDB and are never touched here. */
-var CACHE = 'vibe-room-shell-v1.11.2';
+var CACHE = 'vibe-room-shell-v1.11.3';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
