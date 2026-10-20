@@ -1294,6 +1294,96 @@ var vrIos=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='Mac
 `;
  document.head.appendChild(st);sync();
 })();
+/* touch drag & drop: press and hold a record, then drag it onto a crate, back to the shelf, or to a new spot in the open crate */
+(function(){
+ var G=null,tm=0,raf=0;
+ function srcOf(el){var f=el.closest&&el.closest('.fi');if(f&&recs[+f.dataset.i])return{id:recs[+f.dataset.i].id,from:'fan',el:f};
+  var s=el.closest&&el.closest('.sl:not(.add)');if(s){var i=[].indexOf.call($('#shelf').children,s);if(recs[i])return{id:recs[i].id,from:'shelf',el:s}}return null}
+ function mvR(id,n,at){var old=CR.map[id];if(old&&CR.order[old])CR.order[old]=CR.order[old].filter(function(x){return x!==id});
+  if(n){CR.map[id]=n;var o=ord(n).map(function(i){return recs[i].id}).filter(function(x){return x!==id}),k=at?o.indexOf(at):-1;k<0?o.push(id):o.splice(k,0,id);CR.order[n]=o}else delete CR.map[id];
+  if(OPEN&&!ord(OPEN).length)OPEN=null;cs();render();setSub()}
+ function hit(x,y){var els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];
+  for(var i=0;i<els.length;i++){var t=els[i];if(!t||!t.closest||t.classList.contains('vr-ghost'))continue;
+   var c=t.closest('.cr');if(c){var n=c.querySelector('b').textContent;return n!==(CR.map[G.id]||'')?{k:'crate',n:n,el:c}:null}
+   var f=t.closest('.fi');
+   if(f&&OPEN&&recs[+f.dataset.i]){var fid=recs[+f.dataset.i].id;if(fid===G.id)return null;return G.from==='fan'?{k:'swap',at:fid,el:f}:{k:'item',at:fid,el:f}}
+   var fan=t.closest('.fan:not(.out)');if(fan)return G.from==='shelf'?{k:'open',el:fan}:null;
+   if(G.from==='fan'){var s=t.closest('#shelf');if(s)return{k:'shelf',el:s}}}
+  return null}
+ function move(x,y){if(!G||!G.g)return;G.g.style.transform='translate3d('+(x-G.w/2)+'px,'+(y-G.h*.75)+'px,0) rotate(4deg) scale(1.05)';
+  var t=hit(x,y);if((t&&t.el)!==(G.t&&G.t.el)){if(G.t)G.t.el.classList.remove('dt');if(t)t.el.classList.add('dt');G.t=t}}
+ function loop(){if(!G||!G.active)return;var x=G.x,y=G.y,sh=$('#shelf'),r=sh.getBoundingClientRect(),d=0;
+  if(y>r.top-24&&y<r.bottom+24){if(x<r.left+44)d=-10;else if(x>r.right-44)d=10;if(d){sh.scrollLeft+=d;move(x,y)}}
+  var fan=document.querySelector('.fan:not(.out)');
+  if(fan&&fan.scrollHeight>fan.clientHeight){var q=fan.getBoundingClientRect();
+   if(x>q.left&&x<q.right){if(y>q.top&&y<q.top+40){fan.scrollTop-=10;move(x,y)}else if(y<q.bottom&&y>q.bottom-40){fan.scrollTop+=10;move(x,y)}}}
+  raf=requestAnimationFrame(loop)}
+ function begin(){if(!G)return;var s=G,r=s.src.el.getBoundingClientRect(),g=s.src.el.cloneNode(true);
+  g.removeAttribute('id');g.className+=' vr-ghost';g.draggable=false;s.w=r.width||84;s.h=r.height||84;g.style.width=s.w+'px';g.style.height=s.h+'px';
+  document.body.appendChild(g);s.g=g;s.active=true;s.src.el.classList.add('dragging');document.body.classList.add('vr-drag');move(s.x,s.y);loop()}
+ function cleanup(){cancelAnimationFrame(raf);if(G){if(G.g)G.g.remove();if(G.src.el)G.src.el.classList.remove('dragging')}
+  document.body.classList.remove('vr-drag');document.querySelectorAll('.dt').forEach(function(x){x.classList.remove('dt')})}
+ function drop(){var h=G.t;if(!h)return;var id=G.id;
+  if(h.k==='crate')mvR(id,h.n);else if(h.k==='item')mvR(id,OPEN,h.at);else if(h.k==='open')mvR(id,OPEN);else if(h.k==='shelf')mvR(id,null);
+  else if(h.k==='swap'){var o=ord(OPEN).map(function(i){return recs[i].id}),f=o.indexOf(id),to=o.indexOf(h.at);
+   if(f>=0&&to>=0&&f!==to){o.splice(to,0,o.splice(f,1)[0]);CR.order[OPEN]=o;cs();render()}}}
+ document.addEventListener('touchstart',function(e){if(G||!e.touches||e.touches.length!==1)return;var s=srcOf(e.target);if(!s)return;var t=e.touches[0];
+  G={id:s.id,from:s.from,src:s,x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,active:false,t:null};tm=setTimeout(begin,330)},{passive:true});
+ document.addEventListener('touchmove',function(e){if(!G||!e.touches||!e.touches[0])return;var t=e.touches[0];G.x=t.clientX;G.y=t.clientY;
+  if(G.active){e.cancelable&&e.preventDefault();move(G.x,G.y)}else if(Math.abs(G.x-G.x0)>9||Math.abs(G.y-G.y0)>9){clearTimeout(tm);G=null}},{passive:false});
+ function fin(e){if(!G)return;clearTimeout(tm);if(G.active){e.cancelable&&e.preventDefault();var ok=e.type==='touchend';try{if(ok)drop()}finally{cleanup()}}G=null}
+ document.addEventListener('touchend',fin,{passive:false});document.addEventListener('touchcancel',fin,{passive:false});
+ /* on touch screens the browser's own (mouse-only) drag is switched off so the two don't fight */
+ {var o3=render;render=function(){o3();if(matchMedia('(pointer:coarse)').matches)document.querySelectorAll('.sl[draggable=true],.fi[draggable=true]').forEach(function(x){x.draggable=false})}}
+ var st=document.createElement('style');st.id='vr-drag';
+ st.textContent=`.sl,.fi{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.dragging{opacity:.35}
+.vr-ghost{position:fixed!important;left:0!important;top:0!important;margin:0!important;z-index:60;pointer-events:none!important;opacity:.96;filter:drop-shadow(0 12px 14px #000b);transition:none!important;animation:none!important;rotate:none!important}
+body.vr-drag,body.vr-drag *{-webkit-user-select:none;user-select:none}
+body.vr-drag.vr-crate::after{background:#0000}
+.sl.dt,.fi.dt{outline:2px dashed rgb(var(--g));outline-offset:3px}
+`;
+ document.head.appendChild(st);
+})();
+/* lock screen & headphones: dependable play/pause, and a choice of what the skip buttons do */
+(function(){
+ if(!('mediaSession' in navigator))return;
+ var ms=navigator.mediaSession,mode='songs',last={n:0,p:0};
+ try{mode=localStorage.getItem('vr-lsk')||'songs'}catch(e){}
+ var row=document.createElement('div');row.className='sr';row.innerHTML='<span>Lock screen skip</span><select id="lsk" aria-label="Lock screen skip"><option value="songs">Songs + records</option><option value="records">Records only</option><option value="secs">10 seconds</option></select>';
+ var hint=document.createElement('div');hint.className='sr';hint.innerHTML='<span style="font-size:12.5px;opacity:.7">Tap next or previous twice quickly to skip a whole record.</span>';
+ var anchor=$('#slp');if(anchor){var ar=anchor.closest('.sr');ar.before(row);ar.before(hint)}
+ var sel=row.querySelector('select');sel.value=mode;try{cddSync(sel)}catch(e){}hint.style.display=mode==='songs'?'':'none';
+ sel.onchange=function(){mode=sel.value;try{localStorage.setItem('vr-lsk',mode)}catch(e){}hint.style.display=mode==='songs'?'':'none';wire()};
+ var songsL=function(){var r=recs[cur];return (r&&TL[r.id])||[]};
+ var recSkip=function(d){(d>0?$('#next'):$('#prev')).click()};
+ var songSkip=function(d){var L=songsL();if(!L.length)return recSkip(d);
+  if(d>0){if(curTrack()<L.length-1)$('#snext').click();else recSkip(1)}else $('#sprev').click()};
+ function skip(d){var k=d>0?'n':'p',now=Date.now();
+  if(mode==='songs'&&songsL().length){if(now-last[k]<650){last[k]=0;recSkip(d)}else{last[k]=now;songSkip(d)}}
+  else recSkip(d)}
+ function halt(){try{au.pause()}catch(e){}try{setPlaying(false)}catch(e){}}
+ function wire(){
+  ['previoustrack','nexttrack','seekbackward','seekforward'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
+  try{
+   if(mode==='secs'){
+    ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10))});
+    ms.setActionHandler('seekforward',function(d){au.currentTime=Math.min(au.duration||1e9,au.currentTime+((d&&d.seekOffset)||10))});
+   }else{
+    ms.setActionHandler('previoustrack',function(){skip(-1)});
+    ms.setActionHandler('nexttrack',function(){skip(1)});
+   }
+   ms.setActionHandler('play',function(){if(cur<0)return;try{ctx&&ctx.resume&&ctx.resume()}catch(e){}var p=au.play();if(p&&p.catch)p.catch(function(){})});
+   ms.setActionHandler('pause',halt);
+   ms.setActionHandler('stop',halt);
+  }catch(e){}}
+ wire();au.addEventListener('play',wire);au.addEventListener('loadstart',wire);
+ if(vrIos){
+  /* let go of the effects audio whenever the music isn't playing or the screen is off, so iOS keeps one clean "now playing" */
+  au.addEventListener('pause',function(){setTimeout(function(){try{if(au.paused&&ctx&&ctx.state==='running')ctx.suspend()}catch(e){}},700)});
+  addEventListener('visibilitychange',function(){try{if(document.hidden&&ctx&&ctx.state==='running'&&!au.paused)ctx.suspend()}catch(e){}});
+ }
+})();
 /* start */
 (async()=>{recs=(await db('readonly',s=>s.getAll()))||[];recs.sort((a,b)=>a.t-b.t);render();
   if(recs.length){$('#title').textContent='Pick a record';$('#sub').textContent='Choose one from the shelf.'}})();
