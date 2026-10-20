@@ -409,6 +409,32 @@ select option,select optgroup{background:#2a1a10;color:#f3e3c3}
 .cdi{display:block;width:100%;text-align:left;background:none;border:0;color:#f3e3c3;padding:8px 10px;border-radius:6px;font:inherit;font-size:14px;cursor:pointer}
 .cdi:hover{background:rgba(var(--g),.28)}
 .cdi.on{color:rgb(var(--g));font-weight:600}
+
+/* v1.11.15: reach every song on short iPhone screens. The menu is portaled
+   to <body> on narrow screens, above any clipped/stacked player elements. */
+#vr-track-shade[hidden]{display:none!important}
+#vr-track-shade{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:79;touch-action:none}
+@media (max-width:700px){
+ #tp.vr-track-sheet{
+   position:fixed!important;top:auto!important;left:12px!important;right:12px!important;
+   bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;
+   width:auto!important;min-width:0!important;max-width:none!important;
+   max-height:min(70vh,540px)!important; /* older iOS fallback */
+   max-height:min(70dvh,540px)!important;
+   overflow-y:auto!important;overflow-x:hidden!important;
+   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;
+   transform:none!important;z-index:80!important;box-sizing:border-box;
+   padding:6px 8px calc(16px + env(safe-area-inset-bottom,0px));
+   border-radius:16px;border:1px solid #ffffff50;
+   box-shadow:0 14px 45px #000e;scrollbar-width:thin;
+ }
+ #tp.vr-track-sheet[hidden]{display:none!important}
+ #tp.vr-track-sheet .mi{min-height:46px;padding:10px 12px;line-height:1.35;white-space:normal;}
+ #tp.vr-track-sheet .mi.cur{background:rgba(var(--g),.14)}
+ /* Extra warmth comes partly from continuously repainting a full-screen gradient.
+    The static gradient still looks the same on phones. */
+ body:before{animation:none!important}
+}
 </style></head><body>
 <div id="motes"></div><div id="dim"></div><div class="rain" id="rn"></div><button id="gear" aria-label="Room settings">⚙</button>
 <main id="room">
@@ -468,7 +494,7 @@ const $=s=>document.querySelector(s),root=document.documentElement,au=new Audio(
 let recs=[],cur=-1,url=null,ctx,ng,pimg='';
 const fmt=t=>isFinite(t)?Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0'):'0:00';
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
-/* v1.11.13: passive playback diagnostics. Never change playback or sound processing here.
+/* v1.11.15: passive playback diagnostics. Never change playback or sound processing here.
    Event history is stored only on this device in localStorage (not the song database). */
 (function(){
  var KEY='vr-playback-log-v1',MAX=180,entries=[],lastTimeLog=0,lastMovement=null,lastMovementAt=Date.now(),lastNoMove=0,lastWatch=Date.now();
@@ -487,7 +513,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
   var r={when:new Date().toISOString(),event:event,detail:detail||'',state:info()};
   entries.push(r);if(entries.length>MAX)entries=entries.slice(-MAX);save();refresh(false);
  }
- function stamp(){return 'Vibe Room v1.11.13 - Playback diagnostic (local-only, no audio or song names)\n'
+ function stamp(){return 'Vibe Room v1.11.15 - Playback diagnostic (local-only, no audio or song names)\n'
   +'Capture: '+new Date().toISOString()+'\n'
   +entries.map(function(e){var s=e.state;return e.when+'  '+e.event+(e.detail?' ['+e.detail+']':'')+
     ' | t='+s.t+'/'+s.dur+' paused='+s.paused+' ended='+s.ended+
@@ -529,7 +555,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
   if(now-lastMovementAt>=5000&&now-lastNoMove>=12000){lastNoMove=now;log('WARNING:no-audio-progress','play requested but time stayed still >=5s')}
  },2000);
  var panel=document.createElement('details');panel.id='vr-diag-panel';panel.style.cssText='border:1px solid #ffffff30;border-radius:9px;padding:10px;margin:16px 0 12px;background:#140e0a66;color:var(--ink)';
- panel.innerHTML='<summary style="cursor:pointer;font-size:15px">Playback diagnostics (v1.11.13)</summary>'+
+ panel.innerHTML='<summary style="cursor:pointer;font-size:15px">Playback diagnostics (v1.11.15)</summary>'+
   '<p style="font-size:12px;line-height:1.5;color:var(--mut)">Test: start music, pause inside Vibe Room, then lock your iPhone and press Play on the Lock Screen. If it freezes, unlock, open these diagnostics <b>before</b> pressing Play in the app, tap <b>Mark failure</b>, then <b>Copy log</b>. No song titles or audio files are recorded.</p>'+
   '<p id="vr-diag-num" style="font-size:12px;color:var(--mut)"></p>'+
   '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">'+
@@ -552,7 +578,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
    msg.textContent=ok?'Log copied. Paste it into this chat.':'Select and copy the log text manually.'}catch(e){msg.textContent='Select and copy the log text manually.'}}
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(function(){msg.textContent='Log copied. Paste it into this chat.'}).catch(fallback)}else fallback();
  });
- log('diagnostics:initialized','app=v1.11.13; standalone='+!!(window.navigator.standalone||matchMedia('(display-mode:standalone)').matches));
+ log('diagnostics:initialized','app=v1.11.15; standalone='+!!(window.navigator.standalone||matchMedia('(display-mode:standalone)').matches));
  refresh(true);
 })();
 
@@ -702,7 +728,6 @@ let nt;function notes(on){clearInterval(nt);if(!on)return;nt=setInterval(()=>{co
 {const sp=setPlaying;setPlaying=function(on){sp(on);document.body.classList.toggle('pl',on);notes(on)}}
 let ang=0,vel=0,lt=0;
 function spin(t){const dt=Math.min(.05,(t-lt)/1000||0);lt=t;const tg=au.paused?0:150*(+$('#spd').value);vel+=(tg-vel)*(1-Math.exp(-dt/(au.paused?.9:.5)));if(!tg&&vel<.5)vel=0;ang=(ang+vel*dt)%360;$('#disc').style.transform=`rotate(${ang}deg)`;requestAnimationFrame(spin)}
-requestAnimationFrame(spin);
 /* more details: drag-to-scratch, tilt, eq bars, filled seek bar, shelf intro */
 let drag=false,la=0,intro=true;
 function spin(t){const dt=Math.min(.05,(t-lt)/1000||0);lt=t;
@@ -909,7 +934,15 @@ function RT(){return (+$('#spd').value||1)*(1+PIT/100)}
 function rate(){au.defaultPlaybackRate=au.playbackRate=RT();au.preservesPitch=false;$('.knob').style.setProperty('--r',(-120+si()*48)+'deg');$('.pit').style.setProperty('--r',(PIT/10*120)+'deg');$('#sp').textContent=SL[si()]+(PIT?` ${PIT>0?'+':''}${PIT}%`:'')}
 function setPit(v){PIT=Math.max(-10,Math.min(10,Math.round(v*2)/2));try{localStorage.setItem('vr-pit',PIT)}catch(e){}rate()}
 {const oa=apply;apply=function(){oa();rate()}}
-function spin(t){const dt=Math.min(.05,(t-lt)/1000||0);lt=t;if(!drag){const tg=au.paused?0:150*RT();vel+=(tg-vel)*(1-Math.exp(-dt/(au.paused?.9:.5)));if(!tg&&vel<.5)vel=0;ang=(ang+vel*dt)%360}$('#disc').style.transform=`rotate(${ang}deg)`;requestAnimationFrame(spin)}
+/* Full-refresh-rate vinyl animation; no 30 FPS mobile throttle.
+   Avoid repainting a stopped disc or an invisible page. */
+function spin(t){const dt=Math.min(.05,(t-lt)/1000||0);lt=t;
+  if(!drag){const tg=au.paused?0:150*RT();vel+=(tg-vel)*(1-Math.exp(-dt/(au.paused?.9:.5)));if(!tg&&vel<.5)vel=0;ang=(ang+vel*dt)%360}
+  if(!document.hidden && (drag||!au.paused||vel>0)){
+    $('#disc').style.transform=`rotate(${ang}deg)`;
+  }
+  requestAnimationFrame(spin)
+}
 {const kn=$('.knob');kn.title='Speed: click, scroll or drag';
   kn.onpointerdown=e=>{kn.setPointerCapture(e.pointerId);const r=kn.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,a0=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI,i0=si();let moved=false;
     kn.onpointermove=m=>{let d=Math.atan2(m.clientY-cy,m.clientX-cx)*180/Math.PI-a0;if(d>180)d-=360;if(d<-180)d+=360;if(Math.abs(d)>8)moved=true;if(moved)setSpd(i0+Math.round(d/48))};
@@ -1140,7 +1173,7 @@ $('#fv').addEventListener('change',()=>{FXS.fv=$('#fv').checked?1:0;try{localSto
   function loop(t){if(false){const play=!au.paused;let real=false;if(play&&an){try{an.getByteFrequencyData(fd);real=true}catch(e){}}
     for(let k=0;k<N;k++){let e=0;if(play){if(real){const lo=1+Math.floor(k*1.5),v=(fd[lo]+fd[lo+1])/510;e=Math.min(1,Math.max(0,(v-.12)/.55))}else e=.3+.3*Math.sin(t/380+k*1.7)}
       E[k]+=(e-E[k])*(e>E[k]?.4:.08);els[k].style.opacity=(.1+E[k]*.9).toFixed(2);els[k].style.transform=`scale(${(1+E[k]*1.9).toFixed(2)})`}}requestAnimationFrame(loop)}
-  requestAnimationFrame(loop)}
+  /* Retired visualizer: no animation frame needed. */}
 /* snappier disc emergence; louder fireflies; butterfly instead of the cat */
 function flyIn(i,delay){const rec=recs[i],rc=$('.rec');if(!rec||!rc)return 780;const b=rc.getBoundingClientRect(),el=srcEl(i),a=(el||$('#shelf')).getBoundingClientRect(),m=emMode(el),dk=m&&el.querySelector('.dk'),d=dk?dk.offsetWidth:Math.min(a.width,a.height)*.82,cx=a.left+a.width/2,
   cy=a.top+a.height*(m?.5:(el&&el.classList.contains('cr')?.15:.1)),f=discClone(rec,{left:cx-d/2,top:cy-d/2,width:d,height:d}),dx=b.left+b.width/2-cx,dy=b.top+b.height/2-cy,k=b.width/d;let kf,dur,opt={delay:delay||0,fill:'both'};
@@ -1160,7 +1193,7 @@ function flyIn(i,delay){const rec=recs[i],rc=$('.rec');if(!rec||!rc)return 780;c
   function loop2(t){if(false){const play=!au.paused;let real=false;if(play&&an){try{an.getByteFrequencyData(fd);real=true}catch(e){}}
     for(let k=0;k<N;k++){let e=0;if(play){if(real){const lo=1+Math.floor(k*.75),v=(fd[lo]+fd[lo+1])/510;e=Math.min(1,Math.max(0,(v-.04)/.38))}else e=.3+.3*Math.sin(t/380+k*1.7)}
       E[k]+=(e-E[k])*(e>E[k]?.45:.08);const s=els[k].style;s.opacity=(.22+E[k]*.78).toFixed(2);s.transform=`scale(${(1+E[k]*2.6).toFixed(2)})`;s.boxShadow=`0 0 ${(8+E[k]*20).toFixed(0)}px ${(2+E[k]*6).toFixed(0)}px rgba(var(--g),${(.55+E[k]*.4).toFixed(2)})`}}requestAnimationFrame(loop2)}
-  requestAnimationFrame(loop2)}
+  /* Retired visualizer: no animation frame needed. */}
 /* smoother flights: transform-only, static mask around the sleeve; calmer fireflies */
 const TR=(x,y,s,r)=>`translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`;
 function flightLayer(a){const w=document.createElement('div');w.className='flyw';w.style.clipPath=`polygon(evenodd,0 0,100% 0,100% 100%,0 100%,0 0,${a.left}px ${a.top}px,${a.right}px ${a.top}px,${a.right}px ${a.bottom}px,${a.left}px ${a.bottom}px,${a.left}px ${a.top}px)`;document.body.append(w);return w}
@@ -1180,7 +1213,7 @@ function flyOut(i,delay){const rec=recs[i],rc=$('.rec');if(!rec||!rc)return;cons
 {const f=document.createElement('div');f.id='fviz3';const N=34,E=new Array(N).fill(0),els=[],fd=new Uint8Array(128);
   for(let i=0;i<N;i++){const x=document.createElement('i'),z=3+Math.random()*2;x.style.cssText=`left:${2+Math.random()*96}%;top:${2+Math.random()*96}%;--x:${(Math.random()-.5)*120}px;--y:${(Math.random()-.5)*120}px;animation-duration:${14+Math.random()*12}s;animation-delay:-${Math.random()*18}s;width:${z}px;height:${z}px`;f.append(x);els.push(x)}
   document.body.append(f);
-  function loop3(t){if(FXS.fv!==0){const play=!au.paused;let real=false;if(play&&an){try{an.getByteFrequencyData(fd);real=true}catch(e){}}
+  function loop3(t){if(FXS.fv!==0&&!au.paused&&!document.hidden){const play=!au.paused;let real=false;if(play&&an){try{an.getByteFrequencyData(fd);real=true}catch(e){}}
     for(let k=0;k<N;k++){let e=0;if(play){if(real){const lo=1+Math.floor(k*1.05),v=(fd[lo]+fd[lo+1])/510;e=Math.min(1,Math.max(0,(v-.06)/.45))}else e=.25+.25*Math.sin(t/420+k*1.7)}
       E[k]+=(e-E[k])*(e>E[k]?.35:.07);const s=els[k].style;s.opacity=(.14+E[k]*.5).toFixed(2);s.transform=`scale(${(1+E[k]*1.5).toFixed(2)})`}}requestAnimationFrame(loop3)}
   requestAnimationFrame(loop3)}
@@ -1238,7 +1271,7 @@ render();
 /* readable dropdowns; faster audio start; inside-the-sleeve page for any playing record */
 const UC={},warm={};
 function urlFor(r){let c=UC[r.id];if(!c||c.b!==r.audio){if(c)URL.revokeObjectURL(c.u);c=UC[r.id]={b:r.audio,u:URL.createObjectURL(r.audio)}}return c.u}
-/* v1.11.13: selectable offline audio transport.
+/* v1.11.15: selectable offline audio transport.
    Blob mode is the original path. Local stream mode uses a same-origin URL
    serviced with HTTP byte-range responses from IndexedDB (still 100% offline).
    This is experimental on iOS and will revert to blob on load errors. */
@@ -1301,7 +1334,7 @@ function cddSync(sel){const c=sel._cdd||cddInit(sel),sig=[...sel.options].map(o=
     it.onclick=e=>{e.stopPropagation();sel.value=o.value;sel.dispatchEvent(new Event('input',{bubbles:true}));sel.dispatchEvent(new Event('change',{bubbles:true}));c.l.hidden=true;cddSync(sel)};c.l.append(it)})}
   const cu=sel.options[sel.selectedIndex];c.b.textContent=cu?cu.textContent:'';[...c.l.children].forEach(it=>it.classList.toggle('on',it.dataset.v===sel.value))}
 function cddAll(){['#spd','#ord','#mood','#slp','#cr','#vs'].forEach(s=>{const e=$(s);if(e)cddSync(e)})}
-cddAll();setInterval(cddAll,400);document.addEventListener('click',()=>document.querySelectorAll('.cdl').forEach(x=>x.hidden=true));
+cddAll();setInterval(function(){if(!document.hidden&&document.querySelector('dialog[open]'))cddAll()},1000);document.addEventListener('click',()=>document.querySelectorAll('.cdl').forEach(x=>x.hidden=true));
 {const sv=$('.sleeve');sv.onclick=()=>{if(cur>=0)gfOpen(cur)};sv.title='Open the sleeve'}
 /* installed app: ask the browser to keep the library, register the offline shell */
 (function(){
@@ -1573,7 +1606,7 @@ body.vr-drag.vr-crate::after{background:#0000}
 (function(){
  function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
  addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
- var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.13</span>';
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.15</span>';
  var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
@@ -1602,6 +1635,37 @@ if(V&&V.mini){const b=document.createElement('button');b.className='mpop';b.titl
  b.innerHTML=ic('M3 5h18v14H3V5zm2 2v10h14V7H5zm6 4h7v5h-7z',16);$('.deck').append(b);
  b.onclick=()=>V.toggleMini();V.onMini(on=>b.classList.toggle('on',on));
  addEventListener('keydown',e=>{if((e.key==='m'||e.key==='M')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/input|select|textarea/i.test(e.target.tagName)&&!document.querySelector('dialog[open]'))V.toggleMini()})}
+})();
+
+/* v1.11.15: iPhone-friendly track list. On phones the menu lives under body,
+   not inside the turntable's clipped, short container. */
+(function(){
+ const p=document.getElementById('tp'),trigger=document.getElementById('trk');
+ if(!p||!trigger)return;
+ const parent=p.parentNode,shade=document.createElement('div');
+ shade.id='vr-track-shade';shade.hidden=true;document.body.append(shade);
+ const mobile=matchMedia('(max-width:700px)');
+ function syncPlacement(){
+   if(mobile.matches){
+     if(p.parentNode!==document.body)document.body.append(p);
+     p.classList.add('vr-track-sheet');p.setAttribute('role','dialog');p.setAttribute('aria-label','Song list');
+   }else{
+     if(p.parentNode!==parent)parent.append(p);
+     p.classList.remove('vr-track-sheet');p.removeAttribute('role');p.removeAttribute('aria-label');
+   }
+   syncVisibility();
+ }
+ function syncVisibility(){shade.hidden=!mobile.matches||p.hidden;
+   trigger.setAttribute('aria-expanded',String(!p.hidden));
+   if(mobile.matches&&!p.hidden)p.style.top='';
+ }
+ shade.addEventListener('click',function(){p.hidden=true;syncVisibility()});
+ addEventListener('keydown',function(e){if(e.key==='Escape'&&!p.hidden){p.hidden=true;syncVisibility()}});
+ p.addEventListener('touchmove',function(e){e.stopPropagation()},{passive:true});
+ new MutationObserver(syncVisibility).observe(p,{attributes:true,attributeFilter:['hidden']});
+ if(mobile.addEventListener)mobile.addEventListener('change',syncPlacement);
+ else if(mobile.addListener)mobile.addListener(syncPlacement);
+ syncPlacement();
 })();
 </script>
 

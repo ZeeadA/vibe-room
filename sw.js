@@ -1,6 +1,6 @@
 /* Vibe Room offline shell. Only caches the app files; your records live in IndexedDB and are never touched here.
    Online: always fetches the newest page (so updates show up on the next open). Offline or very slow: serves the saved copy. */
-var CACHE = 'vibe-room-shell-v1.11.12';
+var CACHE = 'vibe-room-shell-v1.11.15';
 var NET_MS = 3500;
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
@@ -44,7 +44,7 @@ function swr(r) {
     });
   });
 }
-/* v1.11.12 offline audio endpoint: serves IndexedDB records as byte-range media.
+/* v1.11.15 offline audio endpoint: serves IndexedDB records as byte-range media.
    Requests are intentionally not cached; they remain on-device and work offline.
    Avoid loading the whole audio into JS memory: use Blob.slice(). */
 self.addEventListener('message',function(e){
