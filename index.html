@@ -1358,6 +1358,23 @@ body.vr-drag.vr-crate::after{background:#0000}
  var anchor=$('#slp');if(anchor){var ar=anchor.closest('.sr');ar.before(row);ar.before(hint)}
  var sel=row.querySelector('select');sel.value=mode;try{cddSync(sel)}catch(e){}hint.style.display=mode==='songs'?'':'none';
  sel.onchange=function(){mode=sel.value;try{localStorage.setItem('vr-lsk',mode)}catch(e){}hint.style.display=mode==='songs'?'':'none';wire()};
+ /* iOS diagnostic: the system's native play/pause vs an explicit Media Session handler.
+    Different WebKit builds behave differently when a page is paused before locking. */
+ var resumeMode=vrIos?'native':'custom';
+ try{var savedMode=localStorage.getItem('vr-resume-mode');if(savedMode==='native'||savedMode==='custom')resumeMode=savedMode}catch(e){}
+ if(vrIos){
+  var resumeRow=document.createElement('div');resumeRow.className='sr';
+  resumeRow.innerHTML='<span>Lock screen Play/Pause</span><select id="vr-resume-mode" aria-label="Lock screen Play/Pause mode"><option value="native">iPhone native (try first)</option><option value="custom">Vibe Room handler</option></select>';
+  var modeNote=document.createElement('div');modeNote.className='sr';
+  modeNote.innerHTML='<span style="font-size:12.5px;opacity:.7">If Play stays silent after pausing before locking, try the other mode.</span>';
+  row.after(resumeRow);resumeRow.after(modeNote);
+  var resumeSel=resumeRow.querySelector('select');resumeSel.value=resumeMode;
+  try{cddSync(resumeSel)}catch(e){}
+  resumeSel.onchange=function(){resumeMode=resumeSel.value;
+   try{localStorage.setItem('vr-resume-mode',resumeMode)}catch(e){}
+   wire();
+  };
+ }
  var songsL=function(){var r=recs[cur];return (r&&TL[r.id])||[]};
  var recSkip=function(d){(d>0?$('#next'):$('#prev')).click()};
  var songSkip=function(d){var L=songsL();if(!L.length)return recSkip(d);
@@ -1366,15 +1383,18 @@ body.vr-drag.vr-crate::after{background:#0000}
   if(mode==='songs'&&songsL().length){if(now-last[k]<650){last[k]=0;recSkip(d)}else{last[k]=now;songSkip(d)}}
   else recSkip(d)}
  function wire(){
-  ['previoustrack','nexttrack','seekbackward','seekforward','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
+  ['previoustrack','nexttrack','seekbackward','seekforward','play','pause','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
   try{
-   /* App and Lock Screen both use the same native HTML audio element. */
-   ms.setActionHandler('play',function(){
-    if(cur<0){if(recs.length)pick(0);return}
-    var request=au.play();
-    if(request&&request.catch)request.catch(function(err){console.warn('Vibe Room: iOS refused background playback',err)});
-   });
-   ms.setActionHandler('pause',function(){au.pause()});
+   /* In native mode, do NOT intercept play or pause. Let iOS control the
+      same <audio> element, as it does for a basic Safari music page. */
+   if(resumeMode==='custom'){
+    ms.setActionHandler('play',function(){
+     if(cur<0){if(recs.length)pick(0);return}
+     var request=au.play();
+     if(request&&request.catch)request.catch(function(err){console.warn('Vibe Room: background play rejected',err)});
+    });
+    ms.setActionHandler('pause',function(){au.pause()});
+   }
    if(mode==='secs'){
     ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10))});
     ms.setActionHandler('seekforward',function(d){au.currentTime=Math.min(au.duration||1e9,au.currentTime+((d&&d.seekOffset)||10))});
@@ -1396,7 +1416,7 @@ body.vr-drag.vr-crate::after{background:#0000}
 (function(){
  function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
  addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
- var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.9</span>';
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.10</span>';
  var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
