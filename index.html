@@ -418,7 +418,7 @@ select option,select optgroup{background:#2a1a10;color:#f3e3c3}
     <div class="deck"><div class="rec"><div class="disc" id="disc"><div class="label" id="label"></div></div><div class="shine"></div></div><div class="arm" id="arm"></div><i class="led" id="led"></i><i class="knob"></i><span class="sp" id="sp">33⅓</span></div>
     <div class="np">
       <h1 id="title" style="font-size:36px">Your shelf is empty</h1>
-      <p id="sub">Add an MP3 with a name and a cover to start your collection.</p>
+      <p id="sub">Add an audio file with a name and a cover to start your collection.</p>
       <div class="seek"><span id="t1">0:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek"><span id="t2">0:00</span></div>
       <div class="ctl">
         <button class="b" id="prev" aria-label="Previous record">⏮</button>
@@ -456,7 +456,7 @@ select option,select optgroup{background:#2a1a10;color:#f3e3c3}
   <h3>New record</h3>
   <label>Name<input id="nm" type="text" maxlength="40" placeholder="Rainy Sunday"></label>
   <label>Crate<select id="cr"></select></label>
-<label>MP3 file<input id="fa" type="file" accept="audio/*,.mp3"></label>
+<label>Audio file (MP3, M4A, AAC, WAV)<input id="fa" type="file" accept=".mp3,.m4a,.mp4,.aac,.wav,.flac,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/*"></label>
   <label>Cover picture (optional)<input id="fi" type="file" accept="image/*"></label>
   <img id="pv" alt="Cover preview" hidden><button class="b" id="rp" hidden style="margin-bottom:12px">Remove picture</button>
   <div class="vz"><label>Vinyl style<select id="vs"></select></label><div class="vc"><input type="color" id="va" value="#c0392b" aria-label="Color 1"><input type="color" id="vb" value="#f5b041" aria-label="Color 2"><input type="color" id="vcc" value="#1f2a44" aria-label="Color 3"><button class="b" id="vr" type="button">Surprise me</button><i class="vp" id="vp"></i></div></div>
@@ -468,7 +468,7 @@ const $=s=>document.querySelector(s),root=document.documentElement,au=new Audio(
 let recs=[],cur=-1,url=null,ctx,ng,pimg='';
 const fmt=t=>isFinite(t)?Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0'):'0:00';
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
-/* v1.11.12: passive playback diagnostics. Never change playback or sound processing here.
+/* v1.11.13: passive playback diagnostics. Never change playback or sound processing here.
    Event history is stored only on this device in localStorage (not the song database). */
 (function(){
  var KEY='vr-playback-log-v1',MAX=180,entries=[],lastTimeLog=0,lastMovement=null,lastMovementAt=Date.now(),lastNoMove=0,lastWatch=Date.now();
@@ -487,7 +487,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
   var r={when:new Date().toISOString(),event:event,detail:detail||'',state:info()};
   entries.push(r);if(entries.length>MAX)entries=entries.slice(-MAX);save();refresh(false);
  }
- function stamp(){return 'Vibe Room v1.11.12 - Playback diagnostic (local-only, no audio or song names)\n'
+ function stamp(){return 'Vibe Room v1.11.13 - Playback diagnostic (local-only, no audio or song names)\n'
   +'Capture: '+new Date().toISOString()+'\n'
   +entries.map(function(e){var s=e.state;return e.when+'  '+e.event+(e.detail?' ['+e.detail+']':'')+
     ' | t='+s.t+'/'+s.dur+' paused='+s.paused+' ended='+s.ended+
@@ -529,7 +529,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
   if(now-lastMovementAt>=5000&&now-lastNoMove>=12000){lastNoMove=now;log('WARNING:no-audio-progress','play requested but time stayed still >=5s')}
  },2000);
  var panel=document.createElement('details');panel.id='vr-diag-panel';panel.style.cssText='border:1px solid #ffffff30;border-radius:9px;padding:10px;margin:16px 0 12px;background:#140e0a66;color:var(--ink)';
- panel.innerHTML='<summary style="cursor:pointer;font-size:15px">Playback diagnostics (v1.11.12)</summary>'+
+ panel.innerHTML='<summary style="cursor:pointer;font-size:15px">Playback diagnostics (v1.11.13)</summary>'+
   '<p style="font-size:12px;line-height:1.5;color:var(--mut)">Test: start music, pause inside Vibe Room, then lock your iPhone and press Play on the Lock Screen. If it freezes, unlock, open these diagnostics <b>before</b> pressing Play in the app, tap <b>Mark failure</b>, then <b>Copy log</b>. No song titles or audio files are recorded.</p>'+
   '<p id="vr-diag-num" style="font-size:12px;color:var(--mut)"></p>'+
   '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">'+
@@ -552,7 +552,7 @@ const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
    msg.textContent=ok?'Log copied. Paste it into this chat.':'Select and copy the log text manually.'}catch(e){msg.textContent='Select and copy the log text manually.'}}
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(function(){msg.textContent='Log copied. Paste it into this chat.'}).catch(fallback)}else fallback();
  });
- log('diagnostics:initialized','app=v1.11.12; standalone='+!!(window.navigator.standalone||matchMedia('(display-mode:standalone)').matches));
+ log('diagnostics:initialized','app=v1.11.13; standalone='+!!(window.navigator.standalone||matchMedia('(display-mode:standalone)').matches));
  refresh(true);
 })();
 
@@ -614,7 +614,7 @@ $('#fi').onchange=async e=>{const f=e.target.files[0];pimg='';$('#pv').hidden=tr
     c.getContext('2d').drawImage(b,(b.width-m)/2,(b.height-m)/2,m,m,0,0,360,360);pimg=c.toDataURL('image/jpeg',.85);$('#pv').src=pimg;$('#pv').hidden=false}
   catch(x){$('#msg').textContent="Couldn't read that picture. Try a JPG or PNG."}};
 $('#save').onclick=async()=>{const f=$('#fa').files[0];
-  if(!f){$('#msg').textContent='Choose an MP3 file first.';return}
+  if(!f){$('#msg').textContent='Choose an audio file first.';return}
   const r={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),t:Date.now(),name:$('#nm').value.trim()||f.name.replace(/\.[^.]+$/,''),audio:f,img:pimg};
   recs.push(r);await db('readwrite',s=>s.put(r));closeDlg();pick(recs.length-1)};
 let sure=0;
@@ -623,7 +623,7 @@ $('#del').onclick=async()=>{
   sure=0;$('#del').textContent='Remove record';const r=recs[cur];au.pause();au.removeAttribute('src');
   await db('readwrite',s=>s.delete(r.id));recs.splice(cur,1);cur=-1;glow(null);
   $('#label').style.backgroundImage='none';$('#title').textContent=recs.length?'Pick a record':'Your shelf is empty';
-  $('#sub').textContent=recs.length?'Choose one from the shelf.':'Add an MP3 with a name and a cover to start your collection.';render()};
+  $('#sub').textContent=recs.length?'Choose one from the shelf.':'Add an audio file with a name and a cover to start your collection.';render()};
 /* dust motes in the lamplight */
 for(let i=0;i<16;i++){const m=document.createElement('i'),z=2+Math.random()*3;
   m.style.cssText=`left:${Math.random()*100}%;top:${20+Math.random()*80}%;width:${z}px;height:${z}px;animation-duration:${9+Math.random()*10}s;animation-delay:-${Math.random()*12}s`;$('#motes').append(m)}
@@ -655,10 +655,10 @@ $('#fp').oninput=e=>{try{const c=ac(),v=e.target.value/100;if(!amb.f){amb.f=chai
   amb.fv=v;amb.f.gain.setTargetAtTime(v*.6,c.currentTime,.3)}catch(x){}};
 /* edit records */
 let editing=null;const FL=$('#fa').parentNode.firstChild;
-function openDlg(){editing=null;$('#dlg h3').textContent='New record';$('#save').textContent='Add to shelf';FL.textContent='MP3 file';$('#msg').textContent='';dlg.showModal()}
+function openDlg(){editing=null;$('#dlg h3').textContent='New record';$('#save').textContent='Add to shelf';FL.textContent='Audio file (MP3, M4A, AAC, WAV)';$('#msg').textContent='';dlg.showModal()}
 function closeDlg(){dlg.close()}
 dlg.addEventListener('close',()=>{['#nm','#fa','#fi'].forEach(s=>$(s).value='');pimg='';$('#pv').hidden=$('#rp').hidden=true;editing=null});
-$('#ed').onclick=()=>{const r=recs[cur];if(!r)return;openDlg();editing=r.id;$('#dlg h3').textContent='Edit record';$('#save').textContent='Save changes';FL.textContent='Replace MP3 (optional)';$('#nm').value=r.name;pimg=r.img||'';if(pimg){$('#pv').src=pimg;$('#pv').hidden=$('#rp').hidden=false}};
+$('#ed').onclick=()=>{const r=recs[cur];if(!r)return;openDlg();editing=r.id;$('#dlg h3').textContent='Edit record';$('#save').textContent='Save changes';FL.textContent='Replace audio (optional)';$('#nm').value=r.name;pimg=r.img||'';if(pimg){$('#pv').src=pimg;$('#pv').hidden=$('#rp').hidden=false}};
 $('#rp').onclick=()=>{pimg='';$('#pv').hidden=$('#rp').hidden=true;$('#fi').value=''};
 $('#fi').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const b=await createImageBitmap(f),c=document.createElement('canvas');c.width=c.height=360;const m=Math.min(b.width,b.height);c.getContext('2d').drawImage(b,(b.width-m)/2,(b.height-m)/2,m,m,0,0,360,360);pimg=c.toDataURL('image/jpeg',.85);$('#pv').src=pimg;$('#pv').hidden=$('#rp').hidden=false}catch(x){$('#msg').textContent="Couldn't read that picture. Try a JPG or PNG."}};
 function refresh(r){const l=$('#label');l.style.backgroundImage=r.img?`url("${r.img}")`:'none';l.style.backgroundColor=`hsl(${hue(r.name)} 55% 40%)`;$('#title').textContent=r.name;glow(r.img);render()}
@@ -666,7 +666,7 @@ $('#save').onclick=async()=>{const f=$('#fa').files[0],nm=$('#nm').value.trim();
   if(editing){const i=recs.findIndex(r=>r.id===editing),r=recs[i];if(!r){closeDlg();return}
     r.name=nm||r.name;r.img=pimg;if(f)r.audio=f;await db('readwrite',s=>s.put(r));closeDlg();
     if(i!==cur)render();else if(f)pick(i);else refresh(r);return}
-  if(!f){$('#msg').textContent='Choose an MP3 file first.';return}
+  if(!f){$('#msg').textContent='Choose an audio file first.';return}
   const r={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),t:Date.now(),name:nm||f.name.replace(/\.[^.]+$/,''),audio:f,img:pimg};
   recs.push(r);await db('readwrite',s=>s.put(r));closeDlg();pick(recs.length-1)};
 /* icons: drawn, so Windows can't swap in blue emoji */
@@ -748,10 +748,10 @@ function puff(){if(au.paused)return;const a=parseFloat($('#arm').style.getProper
 {const s3=setPlaying;setPlaying=function(on){s3(on);if(on)setTimeout(puff,1200)}}
 let rem=false;const tupd=()=>{$('#t2').textContent=rem?'-'+fmt(au.duration-au.currentTime):fmt(au.duration)};
 $('#t2').title='Click to show time remaining';$('#t2').onclick=()=>{rem=!rem;tupd()};au.addEventListener('timeupdate',tupd);
-{const z=document.createElement('div');z.className='dzb';z.textContent='Drop an MP3 to add a record';document.body.append(z)}
+{const z=document.createElement('div');z.className='dzb';z.textContent='Drop an audio file to add a record';document.body.append(z)}
 addEventListener('dragover',e=>{e.preventDefault();if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files'))document.body.classList.add('dz')});
 addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dz')});
-addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('dz');const f=[...e.dataTransfer.files].find(f=>f.type.startsWith('audio')||/\.mp3$/i.test(f.name));if(!f)return;
+addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('dz');const f=[...e.dataTransfer.files].find(f=>f.type.startsWith('audio')||/\.(mp3|m4a|mp4|aac|wav|flac)$/i.test(f.name));if(!f)return;
   openDlg();const dt=new DataTransfer();dt.items.add(f);$('#fa').files=dt.files;$('#fa').dispatchEvent(new Event('change'))});
 addEventListener('keydown',e=>{const t=e.target;if(t.matches&&t.matches('input,select,textarea')||document.querySelector('dialog[open]')||e.ctrlKey||e.metaKey||e.altKey)return;
   const k=e.key;if(k===' '){if(t.matches&&t.matches('button'))return;e.preventDefault();$('#play').click()}
@@ -1238,7 +1238,7 @@ render();
 /* readable dropdowns; faster audio start; inside-the-sleeve page for any playing record */
 const UC={},warm={};
 function urlFor(r){let c=UC[r.id];if(!c||c.b!==r.audio){if(c)URL.revokeObjectURL(c.u);c=UC[r.id]={b:r.audio,u:URL.createObjectURL(r.audio)}}return c.u}
-/* v1.11.12: selectable offline audio transport.
+/* v1.11.13: selectable offline audio transport.
    Blob mode is the original path. Local stream mode uses a same-origin URL
    serviced with HTTP byte-range responses from IndexedDB (still 100% offline).
    This is experimental on iOS and will revert to blob on load errors. */
@@ -1573,7 +1573,7 @@ body.vr-drag.vr-crate::after{background:#0000}
 (function(){
  function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
  addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
- var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.12</span>';
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.13</span>';
  var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
