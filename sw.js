@@ -1,6 +1,6 @@
 /* Vibe Room offline shell. Only caches the app files; your records live in IndexedDB and are never touched here.
    Online: always fetches the newest page (so updates show up on the next open). Offline or very slow: serves the saved copy. */
-var CACHE = 'vibe-room-shell-v1.11.7';
+var CACHE = 'vibe-room-shell-v1.11.9';
 var NET_MS = 3500;
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', function (e) {

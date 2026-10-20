@@ -1172,10 +1172,8 @@ cddAll();setInterval(cddAll,400);document.addEventListener('click',()=>document.
 (function(){
  try{if(navigator.storage&&navigator.storage.persist)Promise.resolve(navigator.storage.persist()).catch(function(){})}catch(e){}
  try{if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&document.querySelector('link[rel="manifest"]'))
-  {var had=!!navigator.serviceWorker.controller;
-   navigator.serviceWorker.addEventListener('controllerchange',function(){if(!had){had=true;return}
-    var go=function(){setTimeout(function(){location.reload()},600)};
-    if(typeof au!=='undefined'&&!au.paused)au.addEventListener('pause',function f(){au.removeEventListener('pause',f);go()});else go()});
+  {/* Do not reload on pause. Updating while the phone is locked can tear down audio.
+       The newly cached version is used on a later ordinary app launch. */
    addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(reg){
     var chk=function(){try{reg.update()}catch(e){}};chk();addEventListener('visibilitychange',function(){if(!document.hidden)chk()})}).catch(function(){})})}}catch(e){}
 })();
@@ -1368,8 +1366,15 @@ body.vr-drag.vr-crate::after{background:#0000}
   if(mode==='songs'&&songsL().length){if(now-last[k]<650){last[k]=0;recSkip(d)}else{last[k]=now;songSkip(d)}}
   else recSkip(d)}
  function wire(){
-  ['previoustrack','nexttrack','seekbackward','seekforward','play','pause','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
+  ['previoustrack','nexttrack','seekbackward','seekforward','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
   try{
+   /* App and Lock Screen both use the same native HTML audio element. */
+   ms.setActionHandler('play',function(){
+    if(cur<0){if(recs.length)pick(0);return}
+    var request=au.play();
+    if(request&&request.catch)request.catch(function(err){console.warn('Vibe Room: iOS refused background playback',err)});
+   });
+   ms.setActionHandler('pause',function(){au.pause()});
    if(mode==='secs'){
     ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10))});
     ms.setActionHandler('seekforward',function(d){au.currentTime=Math.min(au.duration||1e9,au.currentTime+((d&&d.seekOffset)||10))});
@@ -1377,9 +1382,10 @@ body.vr-drag.vr-crate::after{background:#0000}
     ms.setActionHandler('previoustrack',function(){skip(-1)});
     ms.setActionHandler('nexttrack',function(){skip(1)});
    }
-   /* play / pause / stop are left to the browser itself: that is what keeps the lock screen and headphone buttons reliable on iPhone */
-  }catch(e){}}
- wire();au.addEventListener('play',wire);au.addEventListener('loadstart',wire);
+  }catch(e){console.warn('Vibe Room: media controls unavailable',e)}}
+ /* Wire at startup, when the file changes, or when skip preferences change.
+    Never rewrite a media handler in response to its own Play event. */
+ wire();au.addEventListener('loadstart',wire);
  if(vrIos){
   /* let go of the effects audio whenever the music isn't playing or the screen is off, so iOS keeps one clean "now playing" */
   au.addEventListener('pause',function(){setTimeout(function(){try{if(au.paused&&ctx&&ctx.state==='running')ctx.suspend()}catch(e){}},700)});
@@ -1390,7 +1396,7 @@ body.vr-drag.vr-crate::after{background:#0000}
 (function(){
  function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
  addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
- var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.7</span>';
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.9</span>';
  var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
@@ -1412,8 +1418,9 @@ window.__miniPush=push;
 au.addEventListener('timeupdate',()=>push());au.addEventListener('loadedmetadata',()=>push());
 if('mediaSession' in navigator){const ms=navigator.mediaSession,op=pick;
  pick=function(i,p){op(i,p);const r=recs[i];if(r)try{ms.metadata=new MediaMetadata({title:r.name,artist:'Vibe Room',artwork:r.img?[{src:r.img,sizes:'360x360',type:'image/jpeg'}]:[]})}catch(e){}};
- ms.setActionHandler('play',()=>au.play().catch(()=>{}));ms.setActionHandler('pause',()=>au.pause());
- ms.setActionHandler('previoustrack',()=>$('#prev').click());ms.setActionHandler('nexttrack',()=>$('#next').click())}
+ /* The Lock Screen section owns playback and skip handlers.
+    Only update metadata here; do not overwrite the user's skip settings. */
+}
 if(V&&V.mini){const b=document.createElement('button');b.className='mpop';b.title='Mini player (M)';b.setAttribute('aria-label','Open mini player');
  b.innerHTML=ic('M3 5h18v14H3V5zm2 2v10h14V7H5zm6 4h7v5h-7z',16);$('.deck').append(b);
  b.onclick=()=>V.toggleMini();V.onMini(on=>b.classList.toggle('on',on));
