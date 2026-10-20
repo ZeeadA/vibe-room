@@ -468,6 +468,94 @@ const $=s=>document.querySelector(s),root=document.documentElement,au=new Audio(
 let recs=[],cur=-1,url=null,ctx,ng,pimg='';
 const fmt=t=>isFinite(t)?Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0'):'0:00';
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
+/* v1.11.11: passive playback diagnostics. Never change playback or sound processing here.
+   Event history is stored only on this device in localStorage (not the song database). */
+(function(){
+ var KEY='vr-playback-log-v1',MAX=180,entries=[],lastTimeLog=0,lastMovement=null,lastMovementAt=Date.now(),lastNoMove=0,lastWatch=Date.now();
+ try{var previous=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(previous))entries=previous.slice(-MAX)}catch(e){}
+ function short(x){return Number.isFinite(x)?Math.round(x*100)/100:null}
+ function info(){
+  var a=au,m=null,source='none',ranges=[];
+  try{m=navigator.mediaSession&&navigator.mediaSession.playbackState}catch(e){}
+  try{source=a.currentSrc?new URL(a.currentSrc,location.href).protocol.replace(':',''):'none'}catch(e){source='unknown'}
+  try{for(var i=0;i<Math.min(a.seekable.length,2);i++)ranges.push([short(a.seekable.start(i)),short(a.seekable.end(i))])}catch(e){}
+  var session='unavailable';try{session=navigator.audioSession?(navigator.audioSession.state||navigator.audioSession.type||'present'):'unavailable'}catch(e){}
+  return {t:short(a.currentTime),dur:short(a.duration),paused:a.paused,ended:a.ended,rs:a.readyState,ns:a.networkState,seek:a.seeking,range:ranges,hidden:document.hidden,ms:m,as:session,src:source,error:a.error?a.error.code:null};
+ }
+ function save(){try{localStorage.setItem(KEY,JSON.stringify(entries.slice(-MAX)))}catch(e){}}
+ function log(event,detail){
+  var r={when:new Date().toISOString(),event:event,detail:detail||'',state:info()};
+  entries.push(r);if(entries.length>MAX)entries=entries.slice(-MAX);save();refresh(false);
+ }
+ function stamp(){return 'Vibe Room v1.11.11 - Playback diagnostic (local-only, no audio or song names)\n'
+  +'Capture: '+new Date().toISOString()+'\n'
+  +entries.map(function(e){var s=e.state;return e.when+'  '+e.event+(e.detail?' ['+e.detail+']':'')+
+    ' | t='+s.t+'/'+s.dur+' paused='+s.paused+' ended='+s.ended+
+    ' ready='+s.rs+' network='+s.ns+' seeking='+s.seek+' hidden='+s.hidden+
+    ' media='+s.ms+' session='+s.as+' src='+s.src+' err='+s.error+
+    ' seekable='+JSON.stringify(s.range)}).join('\n');
+ }
+ function refresh(force){
+  var d=document.getElementById('vr-diag-output');
+  if(d&&(force||document.getElementById('vr-diag-panel').open))d.value=stamp();
+  var n=document.getElementById('vr-diag-num');if(n)n.textContent=entries.length+' events saved';
+ }
+ window.VRDiag={log:log,info:info,exportLog:stamp};
+ // Event listeners do not intercept or change the Audio element's behavior.
+ ['loadstart','loadedmetadata','canplay','canplaythrough','play','playing','pause','waiting','stalled','suspend','emptied','abort','error','ended','seeking','seeked','ratechange'].forEach(function(type){
+  au.addEventListener(type,function(){
+   log('audio:'+type,type==='error'&&au.error?('code='+au.error.code+' '+(au.error.message||'').slice(0,120)):'');
+  });
+ });
+ au.addEventListener('timeupdate',function(){var now=Date.now();if(now-lastTimeLog>9000){lastTimeLog=now;log('audio:timeupdate','sample')}});
+ document.addEventListener('visibilitychange',function(){log('page:visibility',document.hidden?'hidden':'visible')});
+ addEventListener('pagehide',function(e){log('page:pagehide',e.persisted?'bfcache':'normal')});
+ addEventListener('pageshow',function(e){log('page:pageshow',e.persisted?'bfcache':'normal')});
+ addEventListener('focus',function(){log('page:focus')});
+ addEventListener('blur',function(){log('page:blur')});
+ document.addEventListener('freeze',function(){log('page:freeze')});
+ document.addEventListener('resume',function(){log('page:resume')});
+ var btn=document.getElementById('play');if(btn)btn.addEventListener('click',function(){log('control:app-play-pause','before handler')},true);
+ // Detect a reported playing state that has no progress. Background timers can
+ // be suspended on iOS, so absence of this warning does NOT prove playback worked.
+ setInterval(function(){
+  var now=Date.now(),t=au.currentTime;
+  if(now-lastWatch>7500)log('page:timer-gap','elapsed='+((now-lastWatch)/1000).toFixed(1)+'s');
+  lastWatch=now;
+  if(au.paused||au.ended||!Number.isFinite(t)){
+   lastMovement=t;lastMovementAt=now;lastNoMove=0;return;
+  }
+  if(lastMovement===null||Math.abs(t-lastMovement)>.2){lastMovement=t;lastMovementAt=now;lastNoMove=0;return}
+  if(now-lastMovementAt>=5000&&now-lastNoMove>=12000){lastNoMove=now;log('WARNING:no-audio-progress','play requested but time stayed still >=5s')}
+ },2000);
+ var panel=document.createElement('details');panel.id='vr-diag-panel';panel.style.cssText='border:1px solid #ffffff30;border-radius:9px;padding:10px;margin:16px 0 12px;background:#140e0a66;color:var(--ink)';
+ panel.innerHTML='<summary style="cursor:pointer;font-size:15px">Playback diagnostics (v1.11.11)</summary>'+
+  '<p style="font-size:12px;line-height:1.5;color:var(--mut)">Test: start music, pause inside Vibe Room, then lock your iPhone and press Play on the Lock Screen. If it freezes, unlock, open these diagnostics <b>before</b> pressing Play in the app, tap <b>Mark failure</b>, then <b>Copy log</b>. No song titles or audio files are recorded.</p>'+
+  '<p id="vr-diag-num" style="font-size:12px;color:var(--mut)"></p>'+
+  '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">'+
+  '<button id="vr-diag-start" type="button" class="b" style="height:auto;min-height:40px">Start fresh test</button>'+
+  '<button id="vr-diag-fail" type="button" class="b" style="height:auto;min-height:40px">Mark failure</button>'+
+  '<button id="vr-diag-copy" type="button" class="b" style="height:auto;min-height:40px">Copy log</button></div>'+
+  '<div id="vr-diag-msg" role="status" style="font-size:12px;color:var(--mut);margin:5px 0"></div>'+
+  '<textarea id="vr-diag-output" readonly spellcheck="false" aria-label="Playback log" style="width:100%;height:190px;max-height:220px;font:11px/1.4 ui-monospace,monospace;background:#100c09;color:#e7d3b8;border:1px solid #ffffff30;border-radius:5px;padding:7px;resize:vertical"></textarea>';
+ var settings=document.getElementById('sd'),done=document.getElementById('sclose');
+ if(settings){var row=done&&done.closest('.row');if(row)row.before(panel);else settings.appendChild(panel)}
+ panel.addEventListener('toggle',function(){refresh(true)});
+ var start=document.getElementById('vr-diag-start');
+ start.addEventListener('click',function(){entries=[];log('TEST:START','new test; source='+((/iPhone|iPad|iPod/.test(navigator.userAgent))?'iOS':'other'));refresh(true);
+  document.getElementById('vr-diag-msg').textContent='Fresh log started. Close settings, then reproduce the problem.'});
+ document.getElementById('vr-diag-fail').addEventListener('click',function(){log('TEST:FAILURE','user reported silent resume');refresh(true);document.getElementById('vr-diag-msg').textContent='Failure marked. Copy the log next.'});
+ document.getElementById('vr-diag-copy').addEventListener('click',function(){
+  log('TEST:EXPORT','copy requested');refresh(true);
+  var value=stamp(),msg=document.getElementById('vr-diag-msg'),field=document.getElementById('vr-diag-output');
+  function fallback(){try{field.focus();field.select();field.setSelectionRange(0,field.value.length);var ok=document.execCommand('copy');
+   msg.textContent=ok?'Log copied. Paste it into this chat.':'Select and copy the log text manually.'}catch(e){msg.textContent='Select and copy the log text manually.'}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(function(){msg.textContent='Log copied. Paste it into this chat.'}).catch(fallback)}else fallback();
+ });
+ log('diagnostics:initialized','app=v1.11.11; standalone='+!!(window.navigator.standalone||matchMedia('(display-mode:standalone)').matches));
+ refresh(true);
+})();
+
 /* storage: IndexedDB keeps your records in this browser */
 const open=()=>new Promise((res,rej)=>{const r=indexedDB.open('vibe-room',1);r.onupgradeneeded=()=>r.result.createObjectStore('r',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function db(mode,fn){try{const d=await open();return await new Promise((res,rej)=>{const t=d.transaction('r',mode),q=fn(t.objectStore('r'));t.oncomplete=()=>res(q&&q.result);t.onerror=t.onabort=()=>rej(t.error)})}catch(e){return null}}
@@ -1357,7 +1445,7 @@ body.vr-drag.vr-crate::after{background:#0000}
  var hint=document.createElement('div');hint.className='sr';hint.innerHTML='<span style="font-size:12.5px;opacity:.7">Tap next or previous twice quickly to skip a whole record.</span>';
  var anchor=$('#slp');if(anchor){var ar=anchor.closest('.sr');ar.before(row);ar.before(hint)}
  var sel=row.querySelector('select');sel.value=mode;try{cddSync(sel)}catch(e){}hint.style.display=mode==='songs'?'':'none';
- sel.onchange=function(){mode=sel.value;try{localStorage.setItem('vr-lsk',mode)}catch(e){}hint.style.display=mode==='songs'?'':'none';wire()};
+ sel.onchange=function(){mode=sel.value;try{localStorage.setItem('vr-lsk',mode)}catch(e){}hint.style.display=mode==='songs'?'':'none';window.VRDiag&&VRDiag.log('settings:skip-mode',mode);wire()};
  /* iOS diagnostic: the system's native play/pause vs an explicit Media Session handler.
     Different WebKit builds behave differently when a page is paused before locking. */
  var resumeMode=vrIos?'native':'custom';
@@ -1372,6 +1460,7 @@ body.vr-drag.vr-crate::after{background:#0000}
   try{cddSync(resumeSel)}catch(e){}
   resumeSel.onchange=function(){resumeMode=resumeSel.value;
    try{localStorage.setItem('vr-resume-mode',resumeMode)}catch(e){}
+   window.VRDiag&&VRDiag.log('settings:lock-mode',resumeMode);
    wire();
   };
  }
@@ -1383,17 +1472,20 @@ body.vr-drag.vr-crate::after{background:#0000}
   if(mode==='songs'&&songsL().length){if(now-last[k]<650){last[k]=0;recSkip(d)}else{last[k]=now;songSkip(d)}}
   else recSkip(d)}
  function wire(){
+  window.VRDiag&&VRDiag.log('media:handlers-registered','playPause='+resumeMode+', skip='+mode);
   ['previoustrack','nexttrack','seekbackward','seekforward','play','pause','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
   try{
    /* In native mode, do NOT intercept play or pause. Let iOS control the
       same <audio> element, as it does for a basic Safari music page. */
    if(resumeMode==='custom'){
     ms.setActionHandler('play',function(){
+     window.VRDiag&&VRDiag.log('control:lock-play','custom handler');
      if(cur<0){if(recs.length)pick(0);return}
      var request=au.play();
-     if(request&&request.catch)request.catch(function(err){console.warn('Vibe Room: background play rejected',err)});
+     if(request&&request.then)request.then(function(){window.VRDiag&&VRDiag.log('play-promise:fulfilled','custom handler')},
+      function(err){window.VRDiag&&VRDiag.log('play-promise:rejected',(err&&err.name||'Error')+': '+(err&&err.message||''));console.warn('Vibe Room: background play rejected',err)});
     });
-    ms.setActionHandler('pause',function(){au.pause()});
+    ms.setActionHandler('pause',function(){window.VRDiag&&VRDiag.log('control:lock-pause','custom handler');au.pause()});
    }
    if(mode==='secs'){
     ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10))});
@@ -1416,7 +1508,7 @@ body.vr-drag.vr-crate::after{background:#0000}
 (function(){
  function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
  addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
- var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.10</span>';
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.11</span>';
  var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
