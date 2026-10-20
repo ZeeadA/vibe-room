@@ -1172,7 +1172,12 @@ cddAll();setInterval(cddAll,400);document.addEventListener('click',()=>document.
 (function(){
  try{if(navigator.storage&&navigator.storage.persist)Promise.resolve(navigator.storage.persist()).catch(function(){})}catch(e){}
  try{if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&document.querySelector('link[rel="manifest"]'))
-  addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}catch(e){}
+  {var had=!!navigator.serviceWorker.controller;
+   navigator.serviceWorker.addEventListener('controllerchange',function(){if(!had){had=true;return}
+    var go=function(){setTimeout(function(){location.reload()},600)};
+    if(typeof au!=='undefined'&&!au.paused)au.addEventListener('pause',function f(){au.removeEventListener('pause',f);go()});else go()});
+   addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(reg){
+    var chk=function(){try{reg.update()}catch(e){}};chk();addEventListener('visibilitychange',function(){if(!document.hidden)chk()})}).catch(function(){})})}}catch(e){}
 })();
 /* iPhone: keep playing with the screen locked, portrait layout */
 var vrIos=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -1362,9 +1367,8 @@ body.vr-drag.vr-crate::after{background:#0000}
  function skip(d){var k=d>0?'n':'p',now=Date.now();
   if(mode==='songs'&&songsL().length){if(now-last[k]<650){last[k]=0;recSkip(d)}else{last[k]=now;songSkip(d)}}
   else recSkip(d)}
- function halt(){try{au.pause()}catch(e){}try{setPlaying(false)}catch(e){}}
  function wire(){
-  ['previoustrack','nexttrack','seekbackward','seekforward'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
+  ['previoustrack','nexttrack','seekbackward','seekforward','play','pause','stop'].forEach(function(a){try{ms.setActionHandler(a,null)}catch(e){}});
   try{
    if(mode==='secs'){
     ms.setActionHandler('seekbackward',function(d){au.currentTime=Math.max(0,au.currentTime-((d&&d.seekOffset)||10))});
@@ -1373,9 +1377,7 @@ body.vr-drag.vr-crate::after{background:#0000}
     ms.setActionHandler('previoustrack',function(){skip(-1)});
     ms.setActionHandler('nexttrack',function(){skip(1)});
    }
-   ms.setActionHandler('play',function(){if(cur<0)return;try{ctx&&ctx.resume&&ctx.resume()}catch(e){}var p=au.play();if(p&&p.catch)p.catch(function(){})});
-   ms.setActionHandler('pause',halt);
-   ms.setActionHandler('stop',halt);
+   /* play / pause / stop are left to the browser itself: that is what keeps the lock screen and headphone buttons reliable on iPhone */
   }catch(e){}}
  wire();au.addEventListener('play',wire);au.addEventListener('loadstart',wire);
  if(vrIos){
@@ -1383,6 +1385,13 @@ body.vr-drag.vr-crate::after{background:#0000}
   au.addEventListener('pause',function(){setTimeout(function(){try{if(au.paused&&ctx&&ctx.state==='running')ctx.suspend()}catch(e){}},700)});
   addEventListener('visibilitychange',function(){try{if(document.hidden&&ctx&&ctx.state==='running'&&!au.paused)ctx.suspend()}catch(e){}});
  }
+})();
+/* keep the screen in step with the music, and show which version is installed */
+(function(){
+ function resync(){try{var on=!au.paused;if(document.body.classList.contains('pl')!==on)setPlaying(on)}catch(e){}}
+ addEventListener('visibilitychange',function(){if(!document.hidden)resync()});addEventListener('pageshow',resync);addEventListener('focus',resync);
+ var v=document.createElement('div');v.className='row';v.style.justifyContent='center';v.innerHTML='<span style="font-size:12px;opacity:.5">Vibe Room · web v1.11.7</span>';
+ var c=$('#sclose');if(c)c.parentNode.before(v);
 })();
 /* start */
 (async()=>{recs=(await db('readonly',s=>s.getAll()))||[];recs.sort((a,b)=>a.t-b.t);render();
